@@ -5,9 +5,11 @@ import org.springframework.stereotype.Service
 import org.springframework.validation.annotation.Validated
 import ru.mfirsov.workrooms.dto.WorkerDto
 import ru.mfirsov.workrooms.mapper.WorkerMapper
+import ru.mfirsov.workrooms.repository.OfficeRepository
 import ru.mfirsov.workrooms.repository.RoomRepository
 import ru.mfirsov.workrooms.repository.WorkerRepository
 import ru.mfirsov.workrooms.repository.entity.WorkerEntity
+import java.time.LocalDate
 import java.util.*
 import javax.validation.Valid
 
@@ -16,7 +18,7 @@ import javax.validation.Valid
 class WorkerService(
     private val workerRepository: WorkerRepository,
     private val workerMapper: WorkerMapper,
-    private val officeRepository: WorkerRepository,
+    private val officeRepository: OfficeRepository,
     private val roomRepository: RoomRepository
 ) {
     private val logger = LoggerFactory.getLogger(this::class.java)
@@ -26,11 +28,17 @@ class WorkerService(
         return workerRepository.findAll().map { workerMapper.workerEntityToDto(it) }.toSet()
     }
 
-    fun getAllActiveWorkers(): Set<WorkerDto> =
-        convertEntityToDto(workerRepository.findAllByHiringDateNotNullAndFiringDateIsNull())
+    fun getAllActiveWorkers(): Set<WorkerDto> {
+        val workerEntities = workerRepository.findAll()
+        val activeWorkerEntities = workerEntities.filter { LocalDate.now().isBefore(it.firingDate) || it.firingDate == null }.toSet()
+        return convertEntityToDto(activeWorkerEntities)
+    }
 
-    fun getAllFiredWorkers(): Set<WorkerDto> =
-        convertEntityToDto(workerRepository.findAllByFiringDateNotNull())
+    fun getAllFiredWorkers(): Set<WorkerDto> {
+        val workerEntities = workerRepository.findAllByFiringDateNotNull()
+        val firedWorkerEntities = workerEntities.filter { LocalDate.now().isAfter(it.firingDate) }.toSet()
+        return convertEntityToDto(firedWorkerEntities)
+    }
 
     fun getWorkerById(id: Int): WorkerDto =
         workerRepository.findById(id)
@@ -44,6 +52,11 @@ class WorkerService(
         workerDto.officeId?.let {
             if (!officeRepository.existsById(it)) {
                 throw NoSuchElementException("Невозможно добавить нового работника. Офис с officeId: $it не существует.")
+            }
+        }
+        workerDto.roomNumber?.let {
+            if (!roomRepository.existsById(it)) {
+                throw NoSuchElementException("Невозможно добавить нового работника. Кабинета с roomNumber: $it не существует.")
             }
         }
         if (workerDto.firingDate?.isBefore(workerDto.hiringDate) == true) {
@@ -89,6 +102,25 @@ class WorkerService(
         val workerEntity = workerRepository.findById(workerId).orElseThrow()
         officeId.let { workerEntity.officeId = officeId }
         workerEntity.roomNumber = roomNumber
+        workerRepository.save(workerEntity)
+    }
+
+    fun getWorkersFromOfficeAndRoom(officeId: Int, roomNumber: Int?): Set<WorkerDto> =
+        workerRepository.findAllByOfficeIdAndRoomNumber(officeId, roomNumber)
+            .map { workerMapper.workerEntityToDto(it) }
+            .toSet()
+
+    fun fireWorker(workerId: Int, fireDate: LocalDate) {
+        workerRepository.findById(workerId)
+            .ifPresentOrElse(
+                {
+                    if (it.hiringDate!!.isAfter(fireDate)) {
+                        throw IllegalArgumentException("Дата найма не может быть позже даты увольнения")
+                    }
+                    it.firingDate = fireDate
+                    workerRepository.save(it)
+                },
+                { throw RuntimeException("Сотрудник с workerId: $workerId не найден") })
     }
 
     private fun checkWorkersLimit(workerDto: WorkerDto) {

@@ -35,7 +35,7 @@ class RoomService(
     fun updateWorkersLimit(newLimit: Int, roomNumber: Int) {
         if (newLimit <= 0) throw IllegalArgumentException("Новый лимит работников должен быть больше 0. Текущее значение $newLimit.")
         val roomEntity = roomRepository.findById(roomNumber).orElseThrow()
-        if (roomEntity.workers.size < newLimit)
+        if (roomEntity.workers.size > newLimit)
             throw IllegalArgumentException("Новый лимит работников не может быть ниже текущего количества работников в кабинете. Удалите или переместите сотрудника.")
         roomEntity.workersLimit = newLimit
         roomRepository.save(roomEntity)

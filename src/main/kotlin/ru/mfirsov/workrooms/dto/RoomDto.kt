@@ -4,7 +4,7 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties
 import javax.validation.constraints.NotNull
 
 @JsonIgnoreProperties(value = ["workers"], allowGetters = true)
-data class RoomDto(
+class RoomDto(
     @NotNull
     var roomNumber: Int? = null,
     @NotNull

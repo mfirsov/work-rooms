@@ -4,7 +4,7 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties
 import javax.validation.constraints.NotEmpty
 
 @JsonIgnoreProperties(value = ["id","workers","rooms"], allowGetters = true)
-data class OfficeDto(
+class OfficeDto(
     var id: Int? = null,
     @NotEmpty
     var address: String? = null,
