@@ -59,3 +59,7 @@ kapt {
 tasks.withType<Test> {
 	useJUnitPlatform()
 }
+
+tasks.build {
+	dependsOn(tasks.test)
+}
